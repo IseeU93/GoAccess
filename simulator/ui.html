@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request-Simulator</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1d2330; --muted:#6a7385; --line:#dfe3ea; --accent:#2f6fed; --ok:#1f9d55; --redir:#c98a00; --warn:#d9631e; --err:#d83a3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151b; --card:#1b2029; --text:#e6e9ef; --muted:#8c95a8; --line:#2b3240; --accent:#5b8dff; } }
+  * { box-sizing: border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:20px 16px 40px; display:grid; gap:16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width:760px) { main { grid-template-columns:1fr; } }
+  h1 { grid-column:1/-1; margin:0; font-size:20px; }
+  h1 small { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  h2 { margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 3px; }
+  input, select, textarea { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--text); font:inherit; }
+  input[type=checkbox] { width:auto; }
+  .row { display:flex; gap:10px; } .row > * { flex:1; }
+  .row.m > :first-child { flex:0 0 110px; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--text); font-size:14px; }
+  .presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px; }
+  button { font:inherit; padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer; }
+  button.chip { font-size:12px; padding:4px 9px; }
+  button:hover { border-color:var(--accent); }
+  .actions { display:flex; gap:10px; margin-top:16px; }
+  .actions button { flex:1; padding:10px; font-weight:600; }
+  #start { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #stop { color:var(--err); }
+  button:disabled { opacity:.45; cursor:default; }
+  .tabs { display:flex; gap:6px; margin-bottom:6px; }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:12px; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; text-align:center; }
+  .stat b { display:block; font-size:20px; font-variant-numeric:tabular-nums; }
+  .stat span { font-size:11px; color:var(--muted); }
+  #state { margin-bottom:10px; font-weight:600; }
+  #state.run { color:var(--ok); }
+  #log { font:12px/1.5 ui-monospace, Consolas, monospace; max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; background:var(--bg); padding:6px 8px; }
+  #log div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .s2 { color:var(--ok); } .s3 { color:var(--redir); } .s4 { color:var(--warn); } .s5 { color:var(--err); }
+  #msg { color:var(--err); min-height:1.3em; font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Request-Simulator <small>sendet Requests an diesen Server – sichtbar im GoAccess-Report</small></h1>
+
+  <section>
+    <h2>Anfrage</h2>
+    <div class="tabs">
+      <button type="button" id="tab-manual" class="on">Eigener Request</button>
+      <button type="button" id="tab-profile">Zufallsverkehr</button>
+    </div>
+
+    <div class="presets" id="presets"></div>
+
+    <div id="manual">
+      <div class="row m">
+        <div><label>Methode</label>
+          <select id="method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select></div>
+        <div><label>Pfad</label><input id="path" value="/products/5" list="paths" spellcheck="false"></div>
+      </div>
+      <datalist id="paths">
+        <option value="/"><option value="/products"><option value="/products/5"><option value="/blog/hello-world">
+        <option value="/api/products"><option value="/api/search?q=test"><option value="/api/login"><option value="/api/orders">
+        <option value="/old-page"><option value="/admin"><option value="/error"><option value="/slow"><option value="/health">
+        <option value="/download/manual.zip"><option value="/.env"><option value="/wp-login.php"><option value="/does-not-exist">
+      </datalist>
+      <div class="row">
+        <div><label>Client-IP (leer = zufällig)</label><input id="ip" placeholder="z. B. 6.6.6.6"></div>
+        <div><label>Browser</label>
+          <select id="ua">
+            <option value="">Chrome (Windows)</option>
+            <option value="Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1">iPhone Safari</option>
+            <option value="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0">Firefox</option>
+            <option value="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36">Android Chrome</option>
+            <option value="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)">Googlebot</option>
+            <option value="curl/8.4.0">curl</option>
+            <option value="sqlmap/1.7.11#stable (https://sqlmap.org)">sqlmap (Scanner)</option>
+          </select></div>
+      </div>
+      <label>Referrer</label>
+      <select id="ref">
+        <option value="">– keiner –</option><option>https://www.google.com/</option><option>https://www.bing.com/</option>
+        <option>https://news.ycombinator.com/</option><option>https://www.reddit.com/</option><option>https://twitter.com/</option>
+      </select>
+      <label>Body (nur bei POST/PUT)</label>
+      <textarea id="body" rows="2" spellcheck="false" placeholder='{"user":"u1"}'></textarea>
+    </div>
+
+    <div id="profile" hidden>
+      <label>Profil</label>
+      <select id="profname">
+        <option value="mixed">mixed – Besucher, Bots, Scanner, Fehler</option>
+        <option value="normal">normal – nur Besucher</option>
+        <option value="spike">spike – Lastspitze (8×)</option>
+        <option value="scan">scan – Angriffe (/.env, SQL-Injection …)</option>
+        <option value="errors">errors – 500er, langsame Requests</option>
+        <option value="bots">bots – Googlebot, curl, python …</option>
+      </select>
+    </div>
+
+    <h2 style="margin-top:20px">Menge &amp; Wiederholung</h2>
+    <div class="row">
+      <div><label>Anzahl pro Runde (0 = endlos)</label><input id="count" type="number" min="0" value="50"></div>
+      <div><label>Requests pro Sekunde</label><input id="rps" type="number" min="0.1" step="any" value="10"></div>
+    </div>
+    <label class="check"><input id="loop" type="checkbox"> Runde nach dem Ende wiederholen (Loop)</label>
+    <div class="row" id="pauserow" hidden>
+      <div><label>Pause zwischen Runden (Sekunden)</label><input id="pause" type="number" min="0" value="2"></div>
+    </div>
+
+    <div class="actions">
+      <button id="start" type="button">▶ Start</button>
+      <button id="stop" type="button" disabled>■ Stopp</button>
+    </div>
+    <div id="msg"></div>
+  </section>
+
+  <section>
+    <h2>Live</h2>
+    <div id="state">Bereit</div>
+    <div class="stats">
+      <div class="stat"><b id="n-sent">0</b><span>gesendet</span></div>
+      <div class="stat"><b id="n-2" class="s2">0</b><span>2xx</span></div>
+      <div class="stat"><b id="n-3" class="s3">0</b><span>3xx</span></div>
+      <div class="stat"><b id="n-4" class="s4">0</b><span>4xx</span></div>
+      <div class="stat"><b id="n-5" class="s5">0</b><span>5xx</span></div>
+    </div>
+    <div id="log"><div style="color:var(--muted)">Noch keine Requests.</div></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let mode = 'manual';
+
+const PRESETS = {
+  'Seite aufrufen':   { mode:'manual', method:'GET',  path:'/products/5', count:20, rps:5, loop:false },
+  '404-Flut':         { mode:'manual', method:'GET',  path:'/does-not-exist', count:100, rps:20, loop:false },
+  'Login Brute-Force':{ mode:'manual', method:'POST', path:'/api/login', ip:'6.6.6.6', ua:'curl/8.4.0', body:'{"user":"admin","pass":"123456"}', count:60, rps:10, loop:false },
+  'Scanner':          { mode:'manual', method:'GET',  path:'/.env', ip:'66.66.66.66', ua:'sqlmap/1.7.11#stable (https://sqlmap.org)', count:100, rps:25, loop:false },
+  '500er':            { mode:'manual', method:'GET',  path:'/error', count:30, rps:10, loop:false },
+  'Langsam':          { mode:'manual', method:'GET',  path:'/slow', count:10, rps:2, loop:false },
+  'Download':         { mode:'manual', method:'GET',  path:'/download/manual.zip', count:20, rps:5, loop:false },
+  'Lastspitze':       { mode:'profile', profile:'spike', count:2000, rps:100, loop:false },
+  'Dauerverkehr':     { mode:'profile', profile:'mixed', count:0, rps:20, loop:false },
+};
+for (const name of Object.keys(PRESETS)) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.textContent = name;
+  b.onclick = () => applyPreset(PRESETS[name]);
+  $('presets').append(b);
+}
+
+function setMode(m) {
+  mode = m;
+  $('tab-manual').classList.toggle('on', m === 'manual');
+  $('tab-profile').classList.toggle('on', m === 'profile');
+  $('manual').hidden = m !== 'manual';
+  $('profile').hidden = m !== 'profile';
+}
+$('tab-manual').onclick = () => setMode('manual');
+$('tab-profile').onclick = () => setMode('profile');
+$('loop').onchange = () => { $('pauserow').hidden = !$('loop').checked; };
+
+function applyPreset(p) {
+  setMode(p.mode);
+  $('method').value = p.method || 'GET';
+  $('path').value = p.path || '/';
+  $('ip').value = p.ip || '';
+  $('ua').value = p.ua && [...$('ua').options].some((o) => o.value === p.ua) ? p.ua : '';
+  $('ref').value = '';
+  $('body').value = p.body || '';
+  if (p.profile) $('profname').value = p.profile;
+  $('count').value = p.count; $('rps').value = p.rps;
+  $('loop').checked = !!p.loop; $('loop').onchange();
+}
+
+$('start').onclick = async () => {
+  $('msg').textContent = '';
+  const payload = {
+    mode, profile: $('profname').value, method: $('method').value, path: $('path').value.trim(),
+    ip: $('ip').value, ua: $('ua').value, ref: $('ref').value, body: $('body').value,
+    count: $('count').value, rps: $('rps').value, loop: $('loop').checked, pause: $('pause').value,
+  };
+  const res = await fetch('/__sim/start', { method:'POST', body: JSON.stringify(payload) });
+  if (!res.ok) $('msg').textContent = (await res.json()).error || 'Fehler beim Start';
+  poll();
+};
+$('stop').onclick = async () => { await fetch('/__sim/stop', { method:'POST' }); poll(); };
+
+async function poll() {
+  let s;
+  try { s = await (await fetch('/__sim/state')).json(); } catch { return; }
+  $('start').disabled = s.running;
+  $('stop').disabled = !s.running;
+  const st = $('state');
+  st.className = s.running ? 'run' : '';
+  const j = s.job;
+  st.textContent = s.running
+    ? `Läuft – Runde ${s.round}${j && j.loop ? ' (Loop)' : ''}, ${s.inflight} in Arbeit`
+    : (j ? 'Gestoppt / fertig' : 'Bereit');
+  $('n-sent').textContent = s.sent;
+  for (const c of [2, 3, 4, 5]) $('n-' + c).textContent = s.classes[c] || 0;
+  if (s.recent.length) {
+    const log = $('log');
+    const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+    log.replaceChildren(...s.recent.map((r) => {
+      const d = document.createElement('div');
+      d.className = 's' + Math.floor(r.status / 100);
+      d.textContent = `${r.status}  ${r.method} ${r.path}   ${r.ms} ms   ${r.ip}`;
+      return d;
+    }));
+    if (atEnd) log.scrollTop = log.scrollHeight;
+  }
+}
+setInterval(poll, 700);
+poll();
+</script>
+</body>
+</html>

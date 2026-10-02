@@ -1,0 +1,20 @@
+<!-- Simulator-Overlay: wird von /__sim/report vor </body> eingefuegt -->
+<style>
+  #simfab { position:fixed; right:18px; bottom:18px; z-index:99999; padding:10px 16px; border:0; border-radius:24px;
+    background:#2f6fed; color:#fff; font:600 14px system-ui,sans-serif; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+  #simpanel { position:fixed; right:18px; bottom:68px; z-index:99999; width:min(560px, calc(100vw - 36px)); height:min(680px, calc(100vh - 90px));
+    border:1px solid #556; border-radius:10px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.45); background:#fff; display:none; }
+  #simpanel.open { display:block; }
+  #simpanel iframe { width:100%; height:100%; border:0; }
+</style>
+<button id="simfab" type="button">⚙ Simulator</button>
+<div id="simpanel"><iframe title="Request-Simulator"></iframe></div>
+<script>
+  (function () {
+    var fab = document.getElementById('simfab'), panel = document.getElementById('simpanel'), frame = panel.querySelector('iframe');
+    fab.onclick = function () {
+      if (!frame.src) frame.src = '/__sim';
+      panel.classList.toggle('open');
+    };
+  })();
+</script>
